@@ -9,13 +9,14 @@ import (
 
 // Errors could be used for root couse analysis
 var (
-	ErrDNSTemperror      = errors.New("temporary DNS error")
-	ErrDNSPermerror      = errors.New("permanent DNS error")
-	ErrInvalidDomain     = errors.New("invalid domain name")
-	ErrDNSLimitExceeded  = errors.New("limit exceeded")
-	ErrSPFNotFound       = errors.New("SPF record not found")
-	errInvalidCIDRLength = errors.New("invalid CIDR length")
-	ErrTooManySPFRecords = errors.New("too many SPF records")
+	ErrDNSTemperror                 = errors.New("temporary DNS error")
+	ErrDNSPermerror                 = errors.New("permanent DNS error")
+	ErrInvalidDomain                = errors.New("invalid domain name")
+	ErrDNSLimitExceeded             = errors.New("limit exceeded")
+	ErrSPFNotFound                  = errors.New("SPF record not found")
+	errInvalidCIDRLength            = errors.New("invalid CIDR length")
+	ErrTooManySPFRecords            = errors.New("too many SPF records")
+	ErrPotentialButInvalidSPFRecord = errors.New("spf record not found, but one or more looked liked one")
 )
 
 // IPMatcherFunc returns true if ip matches to implemented rules.
@@ -157,6 +158,10 @@ func CheckHostWithResolver(ip net.IP, domain, sender string, resolver Resolver) 
 	// more than one record, check_host() produces the "permerror" result.
 	spf, err := filterSPF(txts)
 	if err != nil {
+		// handle records that _look_ like spf but aren't (typos, missing space)
+		if err == ErrPotentialButInvalidSPFRecord {
+			return None, "", err
+		}
 		return Permerror, "", err
 	}
 	if spf == "" {
@@ -181,6 +186,8 @@ func filterSPF(txt []string) (string, error) {
 		n   int
 	)
 
+	var potential_but_invalid bool
+
 	for _, s := range txt {
 		if len(s) < vLen {
 			continue
@@ -192,19 +199,36 @@ func filterSPF(txt []string) (string, error) {
 			}
 			continue
 		}
-		if s[vLen] != ' ' && s[vLen] != '\t' {
+
+		// handle records that _look_ like spf but aren't (typos, missing spaces)
+		is_followed_by_space := s[vLen] == ' ' || s[vLen] == '\t'
+		has_prefix := strings.HasPrefix(s, v)
+
+		if has_prefix && !is_followed_by_space {
+			potential_but_invalid = true
+		}
+
+		if !is_followed_by_space || !has_prefix {
 			continue
 		}
-		if !strings.HasPrefix(s, v) {
-			continue
-		}
+
 		spf = s
 		n++
 	}
 	if n > 1 {
 		return "", ErrTooManySPFRecords
 	}
-	return spf, nil
+
+	if n == 1 {
+		return spf, nil
+	}
+
+	if potential_but_invalid {
+		return "", ErrPotentialButInvalidSPFRecord
+	}
+
+	return "", nil
+
 }
 
 // isDomainName is a 1:1 copy of implementation from

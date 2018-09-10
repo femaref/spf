@@ -1201,6 +1201,13 @@ func TestSelectingRecord(t *testing.T) {
 	}))
 	defer dns.HandleRemove("many-records.")
 
+	dns.HandleFunc("invalid-record.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`invalid-record. 0 IN TXT "v=spf1+all"`,
+		},
+	}))
+	defer dns.HandleRemove("invalid-record.")
+
 	samples := []struct {
 		d string
 		r Result
@@ -1208,10 +1215,11 @@ func TestSelectingRecord(t *testing.T) {
 	}{
 		{"notexists", None, ErrDNSPermerror},
 		{"v-spf2", None, ErrSPFNotFound},
-		{"v-spf10", None, ErrSPFNotFound},
+		{"v-spf10", None, ErrPotentialButInvalidSPFRecord},
 		{"no-record", None, ErrSPFNotFound},
 		{"many-records", Permerror, ErrTooManySPFRecords},
 		{"mixed-records", Pass, nil},
+		{"invalid-record", None, ErrPotentialButInvalidSPFRecord},
 	}
 
 	ip := net.ParseIP("10.0.0.1")
