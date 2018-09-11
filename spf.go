@@ -130,6 +130,16 @@ func CheckHost(ip net.IP, domain, sender string) (Result, string, error) {
 // The function returns result of verification, explanations as result of "exp=",
 // and error as the reason for the encountered problem.
 func CheckHostWithResolver(ip net.IP, domain, sender string, resolver Resolver) (Result, string, error) {
+	result, parser, err := preParse(ip, domain, sender, resolver)
+
+	if err != nil {
+		return result, "", err
+	}
+
+	return parser.parse()
+}
+
+func preParse(ip net.IP, domain, sender string, resolver Resolver) (Result, *parser, error) {
 	/*
 	* As per RFC 7208 Section 4.3:
 	* If the <domain> is malformed (e.g., label longer than 63
@@ -138,7 +148,7 @@ func CheckHostWithResolver(ip net.IP, domain, sender string, resolver Resolver) 
 	* domain name, [...], check_host() immediately returns None
 	 */
 	if !isDomainName(domain) {
-		return None, "", ErrInvalidDomain
+		return None, nil, ErrInvalidDomain
 	}
 
 	txts, err := resolver.LookupTXTStrict(NormalizeFQDN(domain))
@@ -146,11 +156,11 @@ func CheckHostWithResolver(ip net.IP, domain, sender string, resolver Resolver) 
 	case nil:
 		// continue
 	case ErrDNSLimitExceeded:
-		return Permerror, "", err
+		return Permerror, nil, err
 	case ErrDNSPermerror:
-		return None, "", err
+		return None, nil, err
 	default:
-		return Temperror, "", err
+		return Temperror, nil, err
 	}
 
 	// If the resultant record set includes no records, check_host()
@@ -160,16 +170,23 @@ func CheckHostWithResolver(ip net.IP, domain, sender string, resolver Resolver) 
 	if err != nil {
 		// handle records that _look_ like spf but aren't (typos, missing space)
 		if err == ErrPotentialButInvalidSPFRecord {
-			return None, "", err
+			return None, nil, err
 		}
-		return Permerror, "", err
+		return Permerror, nil, err
 	}
 	if spf == "" {
-		return None, "", ErrSPFNotFound
+		return None, nil, ErrSPFNotFound
 	}
 
-	return newParser(sender, domain, ip, spf, resolver).parse()
+	return None, newParser(sender, domain, ip, spf, resolver), nil
 }
+
+/*
+func ExtractAllowedHosts(ip net.IP, domain, sender string) (Result, string, error) {
+}
+
+func ExtractAllowedHostsWithResolver(ip net.IP, domain, sender string, resolver Resolver) (Result, string, error) {
+}*/
 
 // Starting with the set of records that were returned by the lookup,
 // discard records that do not begin with a version section of exactly
