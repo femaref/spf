@@ -1201,7 +1201,7 @@ func TestSelectingRecord(t *testing.T) {
 			`mixed-records. 0 IN TXT ""`,
 		},
 	}))
-	defer dns.HandleRemove("many-records.")
+	defer dns.HandleRemove("mixed-records.")
 
 	dns.HandleFunc("invalid-record.", zone(map[uint16][]string{
 		dns.TypeTXT: {
