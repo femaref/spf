@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/miekg/dns"
 )
 
@@ -1228,5 +1230,109 @@ func TestSelectingRecord(t *testing.T) {
 		if r != s.r || e != s.e {
 			t.Errorf("#%d `%s` want [`%v` `%v`], got [`%v` `%v`]", i, s.d, s.r, s.e, r, e)
 		}
+	}
+}
+
+func TestExtract(t *testing.T) {
+	dns.HandleFunc("no-record.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`no-record. 0 IN TXT ""`,
+		},
+	}))
+	defer dns.HandleRemove("no-record.")
+
+	dns.HandleFunc("all.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`all. 0 IN TXT "v=spf1 +all"`,
+		},
+	}))
+	defer dns.HandleRemove("all.")
+
+	dns.HandleFunc("ip.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`ip. 0 IN TXT "v=spf1 ip4:10.8.0.0/16 ~all"`,
+		},
+	}))
+	defer dns.HandleRemove("ip.")
+
+	dns.HandleFunc("mx.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`mx. 0 IN TXT "v=spf1 mx:mx.mx ~all"`,
+		},
+	}))
+	defer dns.HandleRemove("mx.")
+
+	dns.HandleFunc("only-mx.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`only-mx. 0 IN TXT "v=spf1 mx ~all"`,
+		},
+	}))
+	defer dns.HandleRemove("only-mx.")
+
+	dns.HandleFunc("a.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`a. 0 IN TXT "v=spf1 a:foo.a ~all"`,
+		},
+	}))
+	defer dns.HandleRemove("a.")
+
+	dns.HandleFunc("only-a.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`only-a. 0 IN TXT "v=spf1 a ~all"`,
+		},
+	}))
+	defer dns.HandleRemove("only-a.")
+
+	dns.HandleFunc("include.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`spf.include. 0 IN TXT "v=spf1 ip4:10.8.0.1 ~all"`,
+			`include. 0 IN TXT "v=spf1 include:spf.include ~all"`,
+		},
+	}))
+	defer dns.HandleRemove("include.")
+
+	dns.HandleFunc("include-a.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`spf.include-a. 0 IN TXT "v=spf1 a ~all"`,
+			`include-a. 0 IN TXT "v=spf1 include:spf.include-a ~all"`,
+		},
+	}))
+	defer dns.HandleRemove("include-a.")
+
+	dns.HandleFunc("redirect.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`spf.redirect. 0 IN TXT "v=spf1 ip4:10.8.0.1 ~all"`,
+			`redirect. 0 IN TXT "v=spf1 redirect=spf.redirect"`,
+		},
+	}))
+	defer dns.HandleRemove("redirect.")
+
+	samples := []struct {
+		d   string
+		r   []string
+		err error
+	}{
+		{"no-record", nil, ErrSPFNotFound},
+		{"all", []string{"0.0.0.0/0"}, nil},
+		{"ip", []string{"10.8.0.0/16"}, nil},
+		{"mx", []string{"mx.mx"}, nil},
+		{"only-mx", []string{"only-mx"}, nil},
+		{"a", []string{"foo.a"}, nil},
+		{"only-a", []string{"only-a"}, nil},
+		{"include", []string{"10.8.0.1"}, nil},
+		{"include-a", []string{"spf.include-a"}, nil},
+		{"redirect", []string{"10.8.0.1"}, nil},
+	}
+
+	ip := net.ParseIP("10.0.0.1")
+	for i, s := range samples {
+		r, err := ExtractAllowedHostsWithResolver(ip, s.d, s.d, testResolver)
+
+		if s.err == nil {
+			assert.NoError(t, err, "#%d `%s` want no error, got %v", i, s.d, err)
+		} else {
+			assert.EqualError(t, err, s.err.Error(), "#%d `%s` want %v, got %v", i, s.d, s.err, err)
+		}
+		assert.Equal(t, s.r, r, "#%d `%s` want [`%v`], got [`%v`]", i, s.d, s.r, r)
 	}
 }

@@ -181,12 +181,18 @@ func preParse(ip net.IP, domain, sender string, resolver Resolver) (Result, *par
 	return None, newParser(sender, domain, ip, spf, resolver), nil
 }
 
-/*
-func ExtractAllowedHosts(ip net.IP, domain, sender string) (Result, string, error) {
+func ExtractAllowedHosts(ip net.IP, domain, sender string) ([]string, error) {
+	return ExtractAllowedHostsWithResolver(ip, domain, sender, NewLimitedResolver(&DNSResolver{}, 10, 10))
 }
 
-func ExtractAllowedHostsWithResolver(ip net.IP, domain, sender string, resolver Resolver) (Result, string, error) {
-}*/
+func ExtractAllowedHostsWithResolver(ip net.IP, domain, sender string, resolver Resolver) ([]string, error) {
+	_, parser, err := preParse(ip, domain, sender, resolver)
+	if err != nil {
+		return nil, err
+	}
+
+	return parser.extract()
+}
 
 // Starting with the set of records that were returned by the lookup,
 // discard records that do not begin with a version section of exactly

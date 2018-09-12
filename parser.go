@@ -106,6 +106,65 @@ func (p *parser) parse() (Result, string, error) {
 	return result, "", err
 }
 
+// extract runs through the spf and extracts all hosts that result in `Pass` or `Neutral`
+func (p *parser) extract() ([]string, error) {
+
+	tokens := lex(p.Query)
+
+	if err := p.sortTokens(tokens); err != nil {
+		return nil, err
+	}
+
+	var output []string
+
+	for _, token := range p.Mechanisms {
+		res, _ := matchingResult(token.qualifier)
+
+		if !(res == Pass || res == Neutral) {
+			continue
+		}
+
+		switch token.mechanism {
+		case tAll:
+			output = append(output, "0.0.0.0/0")
+			return output, nil
+		case tA, tMX:
+			if token.value != "" {
+				output = append(output, token.value)
+			} else {
+				output = append(output, p.Domain)
+			}
+		case tIP4, tIP6:
+			output = append(output, token.value)
+		case tInclude:
+			_, parser, err := preParse(p.IP, token.value, p.Sender, p.resolver)
+			if err != nil {
+				return nil, err
+			}
+			include_out, err := parser.extract()
+			if err != nil {
+				return nil, err
+			}
+			output = append(output, include_out...)
+		case tExists:
+		}
+	}
+
+	if p.Redirect != nil {
+		redirectDomain := p.Redirect.value
+
+		redirected, err := ExtractAllowedHostsWithResolver(p.IP, redirectDomain, p.Sender, p.resolver)
+
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, redirected...)
+	}
+
+	return output, nil
+}
+
 func (p *parser) sortTokens(tokens []*token) error {
 	all := false
 	for _, token := range tokens {
