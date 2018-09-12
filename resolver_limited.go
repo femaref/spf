@@ -29,6 +29,26 @@ func (r *LimitedResolver) canLookup() bool {
 	return atomic.AddInt32(&r.lookupLimit, -1) > 0
 }
 
+// LookupMX returns the DNS MX records for the given domain name.
+// Returns nil and ErrDNSLimitExceeded if total number of lookups made
+// by underlying resolver exceed the limit.
+func (r *LimitedResolver) LookupMX(name string) ([]string, error) {
+	if !r.canLookup() {
+		return nil, ErrDNSLimitExceeded
+	}
+	return r.resolver.LookupMX(name)
+}
+
+// LookupA returns the DNS A records for the given domain name.
+// Returns nil and ErrDNSLimitExceeded if total number of lookups made
+// by underlying resolver exceed the limit.
+func (r *LimitedResolver) LookupA(name string) ([]string, error) {
+	if !r.canLookup() {
+		return nil, ErrDNSLimitExceeded
+	}
+	return r.resolver.LookupA(name)
+}
+
 // LookupTXT returns the DNS TXT records for the given domain name.
 // Returns nil and ErrDNSLimitExceeded if total number of lookups made
 // by underlying resolver exceed the limit.

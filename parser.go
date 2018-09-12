@@ -106,6 +106,35 @@ func (p *parser) parse() (Result, string, error) {
 	return result, "", err
 }
 
+func (p *parser) extractFromHostList(ls []string, ip4Mask, ip6Mask net.IPMask) ([]string, error) {
+	var output []string
+	for _, mx := range ls {
+		aResult, err := p.resolver.LookupA(NormalizeFQDN(mx))
+
+		if err != nil {
+			return nil, err
+		}
+
+		for _, a := range aResult {
+
+			ip := net.ParseIP(a)
+
+			n := net.IPNet{
+				IP: ip,
+			}
+			switch len(ip) {
+			case net.IPv4len:
+				n.Mask = ip4Mask
+			case net.IPv6len:
+				n.Mask = ip6Mask
+			}
+			output = append(output, n.String())
+		}
+	}
+
+	return output, nil
+}
+
 // extract runs through the spf and extracts all hosts that result in `Pass` or `Neutral`
 func (p *parser) extract() ([]string, error) {
 
@@ -128,12 +157,36 @@ func (p *parser) extract() ([]string, error) {
 		case tAll:
 			output = append(output, "0.0.0.0/0")
 			return output, nil
-		case tA, tMX:
-			if token.value != "" {
-				output = append(output, token.value)
-			} else {
-				output = append(output, p.Domain)
+		case tA:
+			host, ip4Mask, ip6Mask, err := splitDomainDualCIDR(nonemptyString(token.value, p.Domain))
+			if err != nil {
+				return nil, err
 			}
+
+			e, err := p.extractFromHostList([]string{host}, ip4Mask, ip6Mask)
+			if err != nil {
+				return nil, err
+			}
+			output = append(output, e...)
+		case tMX:
+
+			host, ip4Mask, ip6Mask, err := splitDomainDualCIDR(nonemptyString(token.value, p.Domain))
+			if err != nil {
+				return nil, err
+			}
+
+			mxResult, err := p.resolver.LookupMX(NormalizeFQDN(host))
+
+			if err != nil {
+				return nil, err
+			}
+
+			e, err := p.extractFromHostList(mxResult, ip4Mask, ip6Mask)
+			if err != nil {
+				return nil, err
+			}
+			output = append(output, e...)
+
 		case tIP4, tIP6:
 			output = append(output, token.value)
 		case tInclude:

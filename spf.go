@@ -26,6 +26,10 @@ type IPMatcherFunc func(ip net.IP) (bool, error)
 
 // Resolver provides abstraction for DNS layer
 type Resolver interface {
+	//LookupMX returns theDNS MX records for the given domain name.
+	LookupMX(string) ([]string, error)
+	//LookupMX returns theDNS MX records for the given domain name.
+	LookupA(string) ([]string, error)
 	// LookupTXT returns the DNS TXT records for the given domain name.
 	LookupTXT(string) ([]string, error)
 	// LookupTXTStrict returns DNS TXT records for the given name, however it

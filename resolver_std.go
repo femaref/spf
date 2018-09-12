@@ -60,6 +60,30 @@ func (r *DNSResolver) LookupTXTStrict(name string) ([]string, error) {
 	return txts, nil
 }
 
+// LookupA returns the DNS MX records for the given domain name.
+func (r *DNSResolver) LookupA(name string) ([]string, error) {
+	txts, err := net.LookupHost(name)
+	err = errDNS(err)
+	if err != nil {
+		return nil, err
+	}
+	return txts, nil
+}
+
+// LookupMX returns the DNS MX records for the given domain name.
+func (r *DNSResolver) LookupMX(name string) ([]string, error) {
+	mxs, err := net.LookupMX(name)
+	err = errDNS(err)
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, mx := range mxs {
+		names = append(names, mx.Host)
+	}
+	return names, nil
+}
+
 // LookupTXT returns the DNS TXT records for the given domain name.
 func (r *DNSResolver) LookupTXT(name string) ([]string, error) {
 	txts, err := net.LookupTXT(name)

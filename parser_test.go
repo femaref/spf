@@ -1257,7 +1257,13 @@ func TestExtract(t *testing.T) {
 
 	dns.HandleFunc("mx.", zone(map[uint16][]string{
 		dns.TypeTXT: {
-			`mx. 0 IN TXT "v=spf1 mx:mx.mx ~all"`,
+			`mx. 0 IN TXT "v=spf1 mx:mxes.mx ~all"`,
+		},
+		dns.TypeMX: {
+			`mxes.mx. 0 IN MX 5 mx1.mx.`,
+		},
+		dns.TypeA: {
+			`mx1.mx. 0 IN A 10.8.0.1`,
 		},
 	}))
 	defer dns.HandleRemove("mx.")
@@ -1265,6 +1271,9 @@ func TestExtract(t *testing.T) {
 	dns.HandleFunc("only-mx.", zone(map[uint16][]string{
 		dns.TypeTXT: {
 			`only-mx. 0 IN TXT "v=spf1 mx ~all"`,
+		},
+		dns.TypeMX: {
+			`only-mx. 0 IN MX 5 mx.only-mx.`,
 		},
 	}))
 	defer dns.HandleRemove("only-mx.")
@@ -1307,6 +1316,29 @@ func TestExtract(t *testing.T) {
 	}))
 	defer dns.HandleRemove("redirect.")
 
+	dns.HandleFunc("cidr-mx.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`cidr-mx. 0 IN TXT "v=spf1 mx/16 ~all"`,
+		},
+		dns.TypeMX: {
+			`cidr-mx. 0 IN MX 5 mx.cidr-mx.`,
+		},
+		dns.TypeA: {
+			`cidr-mx. 0 IN A 10.8.0.1`,
+		},
+	}))
+	defer dns.HandleRemove("cidr-mx.")
+
+	dns.HandleFunc("cidr-a.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`cidr-a. 0 IN TXT "v=spf1 a/16 ~all"`,
+		},
+		dns.TypeA: {
+			`cidr-a. 0 IN A 10.8.0.1`,
+		},
+	}))
+	defer dns.HandleRemove("cidr-a.")
+
 	samples := []struct {
 		d   string
 		r   []string
@@ -1315,13 +1347,15 @@ func TestExtract(t *testing.T) {
 		{"no-record", nil, ErrSPFNotFound},
 		{"all", []string{"0.0.0.0/0"}, nil},
 		{"ip", []string{"10.8.0.0/16"}, nil},
-		{"mx", []string{"mx.mx"}, nil},
-		{"only-mx", []string{"only-mx"}, nil},
+		{"mx", []string{"mx1.mx."}, nil},
+		{"only-mx", []string{"mx.only-mx."}, nil},
 		{"a", []string{"foo.a"}, nil},
 		{"only-a", []string{"only-a"}, nil},
 		{"include", []string{"10.8.0.1"}, nil},
 		{"include-a", []string{"spf.include-a"}, nil},
 		{"redirect", []string{"10.8.0.1"}, nil},
+		{"cidr-mx", []string{"10.8.0.0/16"}, nil},
+		{"cidr-a", []string{"10.8.0.0/16"}, nil},
 	}
 
 	ip := net.ParseIP("10.0.0.1")

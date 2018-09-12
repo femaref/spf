@@ -4,8 +4,9 @@ import (
 	"net"
 	"sync"
 
-	"github.com/miekg/dns"
 	"strings"
+
+	"github.com/miekg/dns"
 )
 
 // NewMiekgDNSResolver returns new instance of Resolver
@@ -54,6 +55,44 @@ func (r *MiekgDNSResolver) exchange(req *dns.Msg) (*dns.Msg, error) {
 	return res, nil
 }
 
+// LookupMX returns the DNS TXT records for the given domain name.
+func (r *MiekgDNSResolver) LookupMX(name string) ([]string, error) {
+	req := new(dns.Msg)
+	req.SetQuestion(name, dns.TypeMX)
+
+	res, err := r.exchange(req)
+	if err != nil {
+		return nil, err
+	}
+
+	txts := make([]string, 0, len(res.Answer))
+	for _, a := range res.Answer {
+		if r, ok := a.(*dns.MX); ok {
+			txts = append(txts, r.Mx)
+		}
+	}
+	return txts, nil
+}
+
+// LookupA returns the DNS A records for the given domain name.
+func (r *MiekgDNSResolver) LookupA(name string) ([]string, error) {
+	req := new(dns.Msg)
+	req.SetQuestion(name, dns.TypeA)
+
+	res, err := r.exchange(req)
+	if err != nil {
+		return nil, err
+	}
+
+	txts := make([]string, 0, len(res.Answer))
+	for _, a := range res.Answer {
+		if r, ok := a.(*dns.A); ok {
+			txts = append(txts, r.A.String())
+		}
+	}
+	return txts, nil
+}
+
 // LookupTXT returns the DNS TXT records for the given domain name.
 func (r *MiekgDNSResolver) LookupTXT(name string) ([]string, error) {
 	req := new(dns.Msg)
@@ -67,7 +106,7 @@ func (r *MiekgDNSResolver) LookupTXT(name string) ([]string, error) {
 	txts := make([]string, 0, len(res.Answer))
 	for _, a := range res.Answer {
 		if r, ok := a.(*dns.TXT); ok {
-			txts = append(txts, strings.Join(r.Txt,""))
+			txts = append(txts, strings.Join(r.Txt, ""))
 		}
 	}
 	return txts, nil
@@ -92,7 +131,7 @@ func (r *MiekgDNSResolver) LookupTXTStrict(name string) ([]string, error) {
 	txts := make([]string, 0, len(res.Answer))
 	for _, a := range res.Answer {
 		if r, ok := a.(*dns.TXT); ok {
-			txts = append(txts, strings.Join(r.Txt,""))
+			txts = append(txts, strings.Join(r.Txt, ""))
 		}
 	}
 	return txts, nil
