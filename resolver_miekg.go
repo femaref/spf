@@ -137,6 +137,31 @@ func (r *MiekgDNSResolver) LookupTXTStrict(name string) ([]string, error) {
 	return txts, nil
 }
 
+// LookupSPFStrict returns DNS SPF records for the given name, however it
+// will return ErrDNSPermerror upon NXDOMAIN (RCODE 3)
+func (r *MiekgDNSResolver) LookupSPFStrict(name string) ([]string, error) {
+
+	req := new(dns.Msg)
+	req.SetQuestion(name, dns.TypeSPF)
+
+	res, err := r.exchange(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.Rcode == dns.RcodeNameError {
+		return nil, ErrDNSPermerror
+	}
+
+	txts := make([]string, 0, len(res.Answer))
+	for _, a := range res.Answer {
+		if r, ok := a.(*dns.SPF); ok {
+			txts = append(txts, strings.Join(r.Txt, ""))
+		}
+	}
+	return txts, nil
+}
+
 // Exists is used for a DNS A RR lookup (even when the
 // connection type is IPv6).  If any A record is returned, this
 // mechanism matches.

@@ -71,6 +71,18 @@ func (r *LimitedResolver) LookupTXTStrict(name string) ([]string, error) {
 	return r.resolver.LookupTXTStrict(name)
 }
 
+// LookupSPFStrict returns the DNS TXT records for the given domain name.
+// Returns nil and ErrDNSLimitExceeded if total number of lookups made
+// by underlying resolver exceed the limit.
+// It will also return ErrDNSPermerror upon DNS call return error NXDOMAIN
+// (RCODE 3)
+func (r *LimitedResolver) LookupSPFStrict(name string) ([]string, error) {
+	if !r.canLookup() {
+		return nil, ErrDNSLimitExceeded
+	}
+	return r.resolver.LookupSPFStrict(name)
+}
+
 // Exists is used for a DNS A RR lookup (even when the
 // connection type is IPv6).  If any A record is returned, this
 // mechanism matches.

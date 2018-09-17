@@ -35,6 +35,9 @@ type Resolver interface {
 	// LookupTXTStrict returns DNS TXT records for the given name, however it
 	// will return ErrDNSPermerror upon returned NXDOMAIN (RCODE 3)
 	LookupTXTStrict(string) ([]string, error)
+	// LookupTXTStrict returns DNS SPF records for the given name, however it
+	// will return ErrDNSPermerror upon returned NXDOMAIN (RCODE 3)
+	LookupSPFStrict(string) ([]string, error)
 	// Exists is used for a DNS A RR lookup (even when the
 	// connection type is IPv6).  If any A record is returned, this
 	// mechanism matches.
@@ -155,16 +158,23 @@ func preParse(ip net.IP, domain, sender string, resolver Resolver) (Result, *par
 		return None, nil, ErrInvalidDomain
 	}
 
-	txts, err := resolver.LookupTXTStrict(NormalizeFQDN(domain))
-	switch err {
-	case nil:
-		// continue
-	case ErrDNSLimitExceeded:
-		return Permerror, nil, err
-	case ErrDNSPermerror:
-		return None, nil, err
-	default:
-		return Temperror, nil, err
+	var spfs, txts []string
+	var terr, serr error
+	txts, terr = resolver.LookupTXTStrict(NormalizeFQDN(domain))
+
+	if terr != nil || len(txts) == 0 {
+		spfs, serr = resolver.LookupSPFStrict(NormalizeFQDN(domain))
+		switch serr {
+		case nil:
+			// continue
+		case ErrDNSLimitExceeded:
+			return Permerror, nil, serr
+		case ErrDNSPermerror:
+			return None, nil, serr
+		default:
+			return Temperror, nil, serr
+		}
+		txts = spfs
 	}
 
 	// If the resultant record set includes no records, check_host()
@@ -173,10 +183,10 @@ func preParse(ip net.IP, domain, sender string, resolver Resolver) (Result, *par
 	spf, err := filterSPF(txts)
 	if err != nil {
 		// handle records that _look_ like spf but aren't (typos, missing space)
-		if err == ErrPotentialButInvalidSPFRecord {
-			return None, nil, err
+		if terr == ErrPotentialButInvalidSPFRecord {
+			return None, nil, terr
 		}
-		return Permerror, nil, err
+		return Permerror, nil, terr
 	}
 	if spf == "" {
 		return None, nil, ErrSPFNotFound

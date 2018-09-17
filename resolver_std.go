@@ -60,6 +60,12 @@ func (r *DNSResolver) LookupTXTStrict(name string) ([]string, error) {
 	return txts, nil
 }
 
+// LookupSPFStrict returns DNS SPF records for the given name, however it
+// will return ErrDNSPermerror upon NXDOMAIN (RCODE 3)
+func (r *DNSResolver) LookupSPFStrict(name string) ([]string, error) {
+	return nil, ErrDNSPermerror
+}
+
 // LookupA returns the DNS MX records for the given domain name.
 func (r *DNSResolver) LookupA(name string) ([]string, error) {
 	txts, err := net.LookupHost(name)
