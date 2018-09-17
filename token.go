@@ -55,6 +55,8 @@ func (tok tokenType) String() string {
 		return "ip4"
 	case tIP6:
 		return "ip6"
+	case tA:
+		return "a"
 	case tMX:
 		return "mx"
 	case tPTR:
@@ -67,6 +69,8 @@ func (tok tokenType) String() string {
 		return "exists"
 	case tExp:
 		return "exp"
+	case tErr:
+		return "!ERROR!"
 	default:
 		return strconv.Itoa(int(tok))
 	}
