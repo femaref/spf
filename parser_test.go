@@ -1275,6 +1275,9 @@ func TestExtract(t *testing.T) {
 		dns.TypeMX: {
 			`only-mx. 0 IN MX 5 mx.only-mx.`,
 		},
+		dns.TypeA: {
+			`mx.only-mx. 0 IN A 10.8.0.1`,
+		},
 	}))
 	defer dns.HandleRemove("only-mx.")
 
@@ -1282,12 +1285,18 @@ func TestExtract(t *testing.T) {
 		dns.TypeTXT: {
 			`a. 0 IN TXT "v=spf1 a:foo.a ~all"`,
 		},
+		dns.TypeA: {
+			`foo.a. 0 IN A 10.8.0.1`,
+		},
 	}))
 	defer dns.HandleRemove("a.")
 
 	dns.HandleFunc("only-a.", zone(map[uint16][]string{
 		dns.TypeTXT: {
 			`only-a. 0 IN TXT "v=spf1 a ~all"`,
+		},
+		dns.TypeA: {
+			`only-a. 0 IN A 10.8.0.1`,
 		},
 	}))
 	defer dns.HandleRemove("only-a.")
@@ -1304,6 +1313,9 @@ func TestExtract(t *testing.T) {
 		dns.TypeTXT: {
 			`spf.include-a. 0 IN TXT "v=spf1 a ~all"`,
 			`include-a. 0 IN TXT "v=spf1 include:spf.include-a ~all"`,
+		},
+		dns.TypeA: {
+			`spf.include-a. 0 IN A 10.8.0.1`,
 		},
 	}))
 	defer dns.HandleRemove("include-a.")
@@ -1324,7 +1336,7 @@ func TestExtract(t *testing.T) {
 			`cidr-mx. 0 IN MX 5 mx.cidr-mx.`,
 		},
 		dns.TypeA: {
-			`cidr-mx. 0 IN A 10.8.0.1`,
+			`mx.cidr-mx. 0 IN A 10.8.0.1`,
 		},
 	}))
 	defer dns.HandleRemove("cidr-mx.")
@@ -1347,12 +1359,12 @@ func TestExtract(t *testing.T) {
 		{"no-record", nil, ErrSPFNotFound},
 		{"all", []string{"0.0.0.0/0"}, nil},
 		{"ip", []string{"10.8.0.0/16"}, nil},
-		{"mx", []string{"mx1.mx."}, nil},
-		{"only-mx", []string{"mx.only-mx."}, nil},
-		{"a", []string{"foo.a"}, nil},
-		{"only-a", []string{"only-a"}, nil},
+		{"mx", []string{"10.8.0.1/32"}, nil},
+		{"only-mx", []string{"10.8.0.1/32"}, nil},
+		{"a", []string{"10.8.0.1/32"}, nil},
+		{"only-a", []string{"10.8.0.1/32"}, nil},
 		{"include", []string{"10.8.0.1"}, nil},
-		{"include-a", []string{"spf.include-a"}, nil},
+		{"include-a", []string{"10.8.0.1/32"}, nil},
 		{"redirect", []string{"10.8.0.1"}, nil},
 		{"cidr-mx", []string{"10.8.0.0/16"}, nil},
 		{"cidr-a", []string{"10.8.0.0/16"}, nil},

@@ -116,18 +116,20 @@ func (p *parser) extractFromHostList(ls []string, ip4Mask, ip6Mask net.IPMask) (
 		}
 
 		for _, a := range aResult {
-
 			ip := net.ParseIP(a)
 
 			n := net.IPNet{
 				IP: ip,
 			}
-			switch len(ip) {
-			case net.IPv4len:
+
+			if ip.To4() != nil {
+				n.IP = n.IP.Mask(ip4Mask)
 				n.Mask = ip4Mask
-			case net.IPv6len:
+			} else {
+				n.IP = n.IP.Mask(ip6Mask)
 				n.Mask = ip6Mask
 			}
+
 			output = append(output, n.String())
 		}
 	}
@@ -159,8 +161,13 @@ func (p *parser) extract() ([]string, error) {
 			return output, nil
 		case tA:
 			host, ip4Mask, ip6Mask, err := splitDomainDualCIDR(nonemptyString(token.value, p.Domain))
+
 			if err != nil {
 				return nil, err
+			}
+
+			if host == "" {
+				host = p.Domain
 			}
 
 			e, err := p.extractFromHostList([]string{host}, ip4Mask, ip6Mask)
@@ -173,6 +180,10 @@ func (p *parser) extract() ([]string, error) {
 			host, ip4Mask, ip6Mask, err := splitDomainDualCIDR(nonemptyString(token.value, p.Domain))
 			if err != nil {
 				return nil, err
+			}
+
+			if host == "" {
+				host = p.Domain
 			}
 
 			mxResult, err := p.resolver.LookupMX(NormalizeFQDN(host))
@@ -514,7 +525,7 @@ func splitDomainDualCIDR(domain string) (string, net.IPMask, net.IPMask, error) 
 		ip6Len = parts[2]
 	}
 
-	if !isDomainName(domain) {
+	if domain != "" && !isDomainName(domain) {
 		return "", nil, nil, ErrInvalidDomain
 	}
 	ip4Mask, err = parseCIDRMask(ip4Len, 8*net.IPv4len)
