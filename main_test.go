@@ -9,10 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/femaref/spf-1/suite"
 	"github.com/miekg/dns"
 )
 
 var testResolver Resolver
+var scenarios []suite.Scenario
 
 func TestMain(m *testing.M) {
 	s, err := runLocalUDPServer("127.0.0.1:0")
@@ -28,6 +30,13 @@ func TestMain(m *testing.M) {
 	}()
 
 	testResolver, _ = NewMiekgDNSResolver(s.PacketConn.LocalAddr().String())
+
+	scenarios, err = suite.LoadFromFile("suite/testdata/rfc7208-tests.yml")
+
+	if err != nil {
+		panic(err)
+	}
+
 	os.Exit(m.Run())
 }
 
