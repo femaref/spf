@@ -108,6 +108,11 @@ func (l *lexer) scanIdent() *token {
 			}
 
 			break
+		} else if ch == '/' {
+			t.mechanism = tokenTypeFromString(l.input[l.start : cursor-size])
+			t.value = strings.TrimSpace(l.input[cursor-1 : l.pos])
+
+			break
 		}
 	}
 
