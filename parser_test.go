@@ -1250,7 +1250,7 @@ func TestExtract(t *testing.T) {
 
 	dns.HandleFunc("ip.", zone(map[uint16][]string{
 		dns.TypeTXT: {
-			`ip. 0 IN TXT "v=spf1 ip4:10.8.0.0/16 ~all"`,
+			`ip. 0 IN TXT "v=spf1 ip4:10.8.0.1 ~all"`,
 		},
 	}))
 	defer dns.HandleRemove("ip.")
@@ -1351,6 +1351,29 @@ func TestExtract(t *testing.T) {
 	}))
 	defer dns.HandleRemove("cidr-a.")
 
+	dns.HandleFunc("mx-and-ip.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`mx-and-ip. 0 IN TXT "v=spf1 mx ip4:10.8.0.1 -all"`,
+		},
+		dns.TypeMX: {
+			`mx-and-ip. 0 IN MX 5 mx.only-mx.`,
+		},
+		dns.TypeA: {
+			`mx.mx-and-ip. 0 IN A 10.8.0.1`,
+		},
+	}))
+	defer dns.HandleRemove("only-mx.")
+
+	dns.HandleFunc("a-and-ip.", zone(map[uint16][]string{
+		dns.TypeTXT: {
+			`a-and-ip. 0 IN TXT "v=spf1 a ip4:10.8.0.1 -all"`,
+		},
+		dns.TypeA: {
+			`a-and-ip. 0 IN A 10.8.0.1`,
+		},
+	}))
+	defer dns.HandleRemove("only-mx.")
+
 	samples := []struct {
 		d   string
 		r   []string
@@ -1358,16 +1381,18 @@ func TestExtract(t *testing.T) {
 	}{
 		{"no-record", nil, ErrSPFNotFound},
 		{"all", []string{"0.0.0.0/0"}, nil},
-		{"ip", []string{"10.8.0.0/16"}, nil},
+		{"ip", []string{"10.8.0.1/32"}, nil},
 		{"mx", []string{"10.8.0.1/32"}, nil},
 		{"only-mx", []string{"10.8.0.1/32"}, nil},
 		{"a", []string{"10.8.0.1/32"}, nil},
 		{"only-a", []string{"10.8.0.1/32"}, nil},
-		{"include", []string{"10.8.0.1"}, nil},
+		{"include", []string{"10.8.0.1/32"}, nil},
 		{"include-a", []string{"10.8.0.1/32"}, nil},
-		{"redirect", []string{"10.8.0.1"}, nil},
+		{"redirect", []string{"10.8.0.1/32"}, nil},
 		{"cidr-mx", []string{"10.8.0.0/16"}, nil},
 		{"cidr-a", []string{"10.8.0.0/16"}, nil},
+		{"mx-and-ip", []string{"10.8.0.1/32"}, nil},
+		{"a-and-ip", []string{"10.8.0.1/32"}, nil},
 	}
 
 	ip := net.ParseIP("10.0.0.1")
