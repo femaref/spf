@@ -241,7 +241,19 @@ func (p *parser) extract() ([]string, error) {
 		output = append(output, redirected...)
 	}
 
-	return output, nil
+	unique := map[string]bool{}
+
+	for _, o := range output {
+		unique[o] = true
+	}
+
+	var final []string
+
+	for k := range unique {
+		final = append(final, k)
+	}
+
+	return final, nil
 }
 
 func (p *parser) sortTokens(tokens []*token) error {
