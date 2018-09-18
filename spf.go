@@ -183,10 +183,10 @@ func preParse(ip net.IP, domain, sender string, resolver Resolver) (Result, *par
 	spf, err := filterSPF(txts)
 	if err != nil {
 		// handle records that _look_ like spf but aren't (typos, missing space)
-		if terr == ErrPotentialButInvalidSPFRecord {
-			return None, nil, terr
+		if err == ErrPotentialButInvalidSPFRecord {
+			return None, nil, err
 		}
-		return Permerror, nil, terr
+		return Permerror, nil, err
 	}
 	if spf == "" {
 		return None, nil, ErrSPFNotFound
