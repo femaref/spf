@@ -201,14 +201,15 @@ func (p *parser) extract() ([]string, error) {
 			output = append(output, e...)
 
 		case tIP4, tIP6:
-			ip := net.ParseIP(token.value)
-			if ip == nil {
-				return nil, errors.Errorf("%v is not an ip", token.value)
+			if _, ipnet, err := net.ParseCIDR(token.value); err == nil {
+				output = append(output, ipnet.String())
+				break
 			}
+
+			ip := net.ParseIP(token.value)
 			n := net.IPNet{
 				IP: ip,
 			}
-
 			if ip.To4() != nil {
 				n.Mask = net.CIDRMask(net.IPv4len*8, net.IPv4len*8)
 			} else {
