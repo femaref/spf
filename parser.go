@@ -1,11 +1,12 @@
 package spf
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 func matchingResult(qualifier tokenType) (Result, error) {
@@ -199,7 +200,21 @@ func (p *parser) extract() ([]string, error) {
 			output = append(output, e...)
 
 		case tIP4, tIP6:
-			output = append(output, token.value)
+			ip := net.ParseIP(token.value)
+			if ip == nil {
+				return nil, errors.Errorf("%v is not an ip", token.value)
+			}
+			n := net.IPNet{
+				IP: ip,
+			}
+
+			if ip.To4() != nil {
+				n.Mask = net.CIDRMask(net.IPv4len*8, net.IPv4len*8)
+			} else {
+				n.Mask = net.CIDRMask(net.IPv6len*8, net.IPv6len*8)
+			}
+
+			output = append(output, n.String())
 		case tInclude:
 			_, parser, err := preParse(p.IP, token.value, p.Sender, p.resolver)
 			if err != nil {
