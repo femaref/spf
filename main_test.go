@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/femaref/spf-1/suite"
+	"github.com/femaref/spf/suite"
 	"github.com/miekg/dns"
 )
 
