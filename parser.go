@@ -3,6 +3,7 @@ package spf
 import (
 	"fmt"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -252,6 +253,8 @@ func (p *parser) extract() ([]string, error) {
 	for k := range unique {
 		final = append(final, k)
 	}
+
+	sort.Strings(final)
 
 	return final, nil
 }
