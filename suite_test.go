@@ -55,13 +55,9 @@ func runner(scenario suite.Scenario) func(t *testing.T) {
 				}
 				domain = domain[after_at:]
 			}
-			func() {
-				defer func() {
-					if err := recover(); err != nil {
-						t.Errorf("no panic: %s: %s\n%s", scenario.Description, name, test.Description)
-					}
-				}()
-				result, _, err := CheckHostWithResolver(ip, domain, test.Helo, testResolver)
+
+			assert.NotPanicsf(t, func() {
+				result, _, err := CheckHostWithResolver(ip, domain, test.Helo, NewLimitedResolver(testResolver, 10, 10))
 
 				r := result.String()
 				switch result {
@@ -73,7 +69,7 @@ func runner(scenario suite.Scenario) func(t *testing.T) {
 				}
 				assert.Containsf(t, test.Result, r, "result: %s: %s\n%s", scenario.Description, name, test.Description)
 
-			}()
+			}, "no panic: %s: %s\n%s", scenario.Description, name, test.Description)
 		}
 	}
 }
